@@ -102,15 +102,15 @@ class EncodingDetector(object):
         enc_order = {}
         with open(path, 'rb') as fp:
             #basic attributes
-            version, vect_tuple_length, enc_count = fp.readline().split('\t')
-            if MODEL_VERSION != version:
+            version, vect_tuple_length, enc_count = fp.readline().split(b'\t')
+            if MODEL_VERSION != version.decode('utf8'):
                 sys.stderr.write('WARNING: Potentially incompatible model versions!\n')
                 sys.stderr.write('\t%s: %s\n\tthis module: %s\n' % (path, version, MODEL_VERSION))
             vect_tuple_length = int(vect_tuple_length)
             #vectors
             for i in range(int(enc_count)):
                 #encoding name, encoding order
-                enc, order, vect_len = fp.readline().split('\t')
+                enc, order, vect_len = fp.readline().split(b'\t')
                 enc_order[int(order)] = enc
                 #vector keys & values
                 vectors[enc] = {}
