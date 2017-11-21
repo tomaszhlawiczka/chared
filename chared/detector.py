@@ -10,7 +10,7 @@ import os
 import sys
 import struct
 
-ENCODE_REPLACEMENT_CHARACTER = '\x00'
+ENCODE_REPLACEMENT_CHARACTER = b'\x00'
 MODEL_VERSION = '1.3'
 
 def list_models():
@@ -40,7 +40,7 @@ def scalar_product(vec1, vec2):
     "Returns a scalar product of the two vectors."
     result = 0
     for key in vec1.keys():
-        if vec2.has_key(key):
+        if key in vec2:
             result += vec1[key] * vec2[key]
     return result
 
@@ -78,7 +78,7 @@ class EncodingDetector(object):
         """
         with open(path, 'wb') as fp:
             #basic attributes
-            fp.write('%s\t%d\t%d\n' % 
+            fp.write(b'%s\t%d\t%d\n' % 
                 (self._version, self.VECTOR_TUPLE_LENGTH, len(self._vectors)))
             #vectors
             for enc, vector in self._vectors.iteritems():
@@ -88,8 +88,8 @@ class EncodingDetector(object):
                 fp.write('%s\t%d\t%d\n' % (enc, enc_order, vect_len))
                 #vector keys & values
                 for k, v in vector.iteritems():
-                    fp.write('%s%s' % (k, struct.pack('=I', v)))
-                fp.write('\n')
+                    fp.write(b'%s%s' % (k, struct.pack('=I', v)))
+                fp.write(b'\n')
 
     @classmethod
     def load(cls, path):
@@ -103,7 +103,7 @@ class EncodingDetector(object):
         with open(path, 'rb') as fp:
             #basic attributes
             version, vect_tuple_length, enc_count = fp.readline().split(b'\t')
-            if MODEL_VERSION != version.decode('utf8'):
+            if MODEL_VERSION != version.decode('ascii'):
                 sys.stderr.write('WARNING: Potentially incompatible model versions!\n')
                 sys.stderr.write('\t%s: %s\n\tthis module: %s\n' % (path, version, MODEL_VERSION))
             vect_tuple_length = int(vect_tuple_length)
@@ -111,6 +111,7 @@ class EncodingDetector(object):
             for i in range(int(enc_count)):
                 #encoding name, encoding order
                 enc, order, vect_len = fp.readline().split(b'\t')
+                enc = enc.decode('ascii')
                 enc_order[int(order)] = enc
                 #vector keys & values
                 vectors[enc] = {}
@@ -157,7 +158,7 @@ class EncodingDetector(object):
         defined for it.
         """
         if encoding in self._encodings_order:
-            return self._encodings_order.index(encoding)
+            return list(self._encodings_order).index(encoding)
         return sys.maxint
 
     def classify(self, string):
@@ -170,7 +171,7 @@ class EncodingDetector(object):
         """
         input_vector = self.vectorize(string)
         classification = []
-        for clas, vector in self._vectors.iteritems():
+        for clas, vector in self._vectors.items():
             score = scalar_product(input_vector, vector)
             clas_info = {'clas': clas, 'score': score,
                 'order': self.get_encoding_order(clas)}
@@ -182,8 +183,9 @@ class EncodingDetector(object):
         #order result classes 
         # 1.) by vector similarity score (higher score is better)
         # 2.) by the encoding order (lower index is better)
-        classification.sort(lambda x, y:
-            cmp(y['score'], x['score']) or cmp(x['order'], y['order']))
+        # classification.sort(lambda x, y:
+        #    cmp(y['score'], x['score']) or cmp(x['order'], y['order']))
+        classification.sort(key=lambda x: (-x['score'], x['order']))
 
         #return a list of the top classes
         # the top classes have the same score and order as the first one
@@ -210,7 +212,7 @@ class EncodingDetector(object):
         #remove common parts of vectors (the (key, value) pairs with the
         #frequency equal to the number of vectors)
         encodings_count = len(self._vectors)
-        for (key, value), count in key_value_count.iteritems():
+        for (key, value), count in key_value_count.items():
             if count >= encodings_count:
                 for vect in self._vectors.values():
                     if vect.has_key(key):
